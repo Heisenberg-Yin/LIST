@@ -27,32 +27,32 @@ We evaluate on the Beijing, Shanghai and Geo-Glue dataset.
 
 To test LIST-R on the Geo-Glue dataset.
 
-The checkpoint of trained relevance model and trained index can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd?usp=drive_link).
+The checkpoint of trained relevance model and trained index can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd?usp=sharing).
 
 
 ```
 python3 -m src.rank.inference  --checkpoint_file ./checkpoints/rank/geo-glue/checkpoint-file \
-        --model_type bert-base-chinese --log_dir ./log/ --spatial_step_k 1000 --n_heads 2 \
-        --per_gpu_batch_size 32 --origin_data_dir ./data/geo-glue/processed_data/ --device 1  \
-        --output_dir ./data/geo-glue/processed_data/ --dataset geo-glue \
+        --model_type bert-base-chinese --spatial_step_k 1000 --dataset geo-glue\
+        --origin_data_dir ./data/geo-glue/processed_data/ \
+        --output_dir ./data/geo-glue/processed_data/ \
         --max_poi_length 96 --max_query_length 32
 ```
 ```
 python3 -m src.rank.brute_search  --checkpoint_file ./checkpoints/rank/geo-glue/checkpoint-file \
-        --model_type bert-base-chinese --log_dir ./log/ --output_dir ./data/geo-glue/processed_data/ \
-        --spatial_step_k 1000 --n_heads 2 --device 3 --att_dropout 0\
-        --embedding_dir ./data/geo-glue/processed_data/ --per_gpu_batch_size 32 \
-        --origin_data_dir ./data/geo-glue/processed_data/ --topn 100 --dataset geo-glue
+        --model_type bert-base-chinese --spatial_step_k 1000 --dataset geo-glue\
+        --origin_data_dir ./data/geo-glue/processed_data/ \
+        --output_dir ./data/geo-glue/processed_data/ \
+        --embedding_dir ./data/geo-glue/processed_data/
 ```
 
 To test LIST on the Geo-Glue dataset.
 
 ```
 python3 -m src.cluster.inference_l2c  --rank_checkpoint_file ./checkpoints/rank/geo-glue/checkpoint-file \
-        --cluster_checkpoint_file  ./checkpoints/cluster/geo-glue/checkpoint-100-0.3053 --log_dir ./log/ \
-        --device 0 --per_gpu_batch_size 32 --origin_data_dir ./data/geo-glue/processed_data/ --embedding_dir ./data/geo-glue/processed_data/ \
-        --num_cluster 300 --hidden_dim 768 --num_layers 2 --dropout 0 --att_dropout 0 --n_heads 2 \
-        --model_type bert-base-chinese --spatial_step_k 1000 --max_query_length 32 --max_poi_length 96 \
-        --per_gpu_eval_batch_size 32 --min_cluster_size 0 --dataset geo-glue --min_precision 0
+        --cluster_checkpoint_file  ./checkpoints/cluster/geo-glue/checkpoint-100-0.3053 \
+        --model_type bert-base-chinese --spatial_step_k 1000 --dataset geo-glue\ 
+        --num_cluster 300 --hidden_dim 768 --num_layers 2 --min_precision 0\
+        --origin_data_dir ./data/geo-glue/processed_data/ \
+        --embedding_dir ./data/geo-glue/processed_data/ \
 ```
 
