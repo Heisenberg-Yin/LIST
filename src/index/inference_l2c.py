@@ -1,6 +1,6 @@
 import torch
 # import torch.nn as nn
-from src.rank.model.spatialdual import DualSpatial
+from src.rank.model.LISTR import LISTR
 import logging
 import argparse
 # from src.inference_dual_encoder_args import run_parse_args
@@ -21,11 +21,85 @@ import pandas as pd
 from torch.utils.data import Dataset
 from collections import defaultdict
 from typing import Tuple, List
-# from torchmetrics.functional import retrieval_normalized_dcg
 import csv
-from src.cluster.l2c import FeedForwardNet
 from scipy.spatial import distance
 
+
+
+class FeedForwardNet(nn.Module):
+    def __init__(self, in_feats, hidden, out_feats, n_layers, dropout, dataset, use_bns=True):
+        super(FeedForwardNet, self).__init__()
+        self.layers = nn.ModuleList()
+        self.n_layers = n_layers
+        self.use_bns = use_bns
+
+        if dataset == "beijing":
+            self.dXMin = 370348.5629530729  
+            self.dXMax = 542169.9118075342       
+            self.dYMin = 4385454.292902548        
+            self.dYMax = 4534852.463708848
+        elif dataset == "shanghai":
+            self.dXMin = 279409.94093723287
+            self.dXMax = 413006.33419814846
+            self.dYMax = 3530635.2072696607
+            self.dYMin = 3376801.959438628
+        elif dataset == "geo-glue":
+            self.dXMin = 210438.0636364732
+            self.dXMax = 3231338.90780841
+            self.dYMax = 3384024.9910235936
+            self.dYMin = 789621.6111094246 
+        # self.dSizeX = (self.dXMax - self.dXMin) / self.longitude_bins
+        # self.dSizeY = (self.dYMax - self.dYMin) / self.latitude_bins
+        if use_bns:
+            self.bns = nn.ModuleList()
+        
+        if n_layers == 1:
+            self.layers.append(nn.Linear(in_feats, out_feats))
+        else:
+            self.layers.append(nn.Linear(in_feats, hidden))
+            
+            if use_bns:
+                self.bns.append(nn.BatchNorm1d(hidden))
+                
+            for i in range(n_layers - 2):
+                self.layers.append(nn.Linear(hidden, hidden))
+                
+                if use_bns:
+                    self.bns.append(nn.BatchNorm1d(hidden))
+                    
+            self.layers.append(nn.Linear(hidden, out_feats))
+        
+        if self.n_layers > 1:
+            self.prelu = nn.PReLU()
+            self.dropout = nn.Dropout(dropout)
+        
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain("relu")
+        for layer in self.layers:
+            nn.init.xavier_uniform_(layer.weight, gain=gain)
+            nn.init.zeros_(layer.bias)
+
+    def forward(self, x):
+        input_feature = x
+        for layer_id, layer in enumerate(self.layers):
+            x = layer(x)
+            
+            # Check if it's not the last layer
+            if layer_id < self.n_layers - 1:
+                if self.use_bns:
+                    # x = x + input_feature
+                    x = self.bns[layer_id](x)
+                x = self.dropout(self.prelu(x))
+        return x
+    
+    def get_geo_representation(self, coordinates):
+        # device = self.longitude_embedding.weight.device
+        coordinates = torch.tensor(coordinates)  # Convert to tensor if it is not
+        coordinates[:, 0] = (coordinates[:, 0] - self.dXMin) / (self.dXMax - self.dXMin)
+        coordinates[:, 1] = (coordinates[:, 1] - self.dYMin) / (self.dYMax - self.dYMin)
+        return coordinates
 def custom_ndcg(prediction, truth, k):
     # prediction: list of indices
     # # truth: list of indices
@@ -51,12 +125,9 @@ def load_rel(rel_path):
     return dict(reldict)
 
 def load_model(args):
-    # Prepare GLUE task
     args.output_mode = "classification"
     label_list = ["0", "1"]
-    num_labels = len(label_list)
 
-    # store args
     if args.local_rank != -1:
         args.world_size = torch.distributed.get_world_size()
         args.rank = dist.get_rank()
@@ -74,7 +145,7 @@ def load_model(args):
     
     # tokenizer = BertTokenizer.from_pretrained(args.model_type)
     
-    model = DualSpatial(args)
+    model = LISTR(args)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -160,11 +231,8 @@ def run_parse_args():
     parser.add_argument('--spatial_dropout', type=float, default=0)
     parser.add_argument('--spatial_step_k', type=int, default=1000)
     parser.add_argument('--spatial_hidden', type=int, default=128)
-    # parser.add_argument('--use_attention', action='store_true')
     parser.add_argument('--min_precision', type=float, default=0.9)
-    # parser.add_argument('--latitude_bins', type=int, default=1000)
-    # parser.add_argument('--geo_embedding_dim', type=int, default=256)    
-    # parser.add_argument('--spatial_use_mlp', action='store_true') 
+
     parser.add_argument("--weight_decay", default=0, type=float)
     parser.add_argument('--device', type=int, default=-1)
     parser.add_argument('--topn', type=int, default=100)
@@ -623,15 +691,7 @@ def main():
                     partital_recalls_20.append(recall_20)
                     partital_recalls_10.append(recall_10)
                     
-                    # label_onehot = torch.zeros(len(POIs)).to(args.device)
-                    # label_onehot[truth] = 1
-                    # totoal_poi_scores = torch.zeros(len(POIs)).to(args.device)
-                    # totoal_poi_scores[predict_poi_id] = scores[i, predict_id]
-                    
-                    # ndcg_1 = retrieval_normalized_dcg(totoal_poi_scores, label_onehot, 1).item()
-                    # ndcg_3 = retrieval_normalized_dcg(totoal_poi_scores, label_onehot, 3).item()
-                    # ndcg_5 = retrieval_normalized_dcg(totoal_poi_scores, label_onehot, 5).item()
-                    # ndcg_10 = retrieval_normalized_dcg(totoal_poi_scores, label_onehot, 10).item()
+
                     ndcg_1 = custom_ndcg(predict_poi_id,truth.tolist(), 1)
                     ndcg_3 = custom_ndcg(predict_poi_id,truth.tolist(), 3)
                     ndcg_5 = custom_ndcg(predict_poi_id,truth.tolist(), 5)
@@ -655,7 +715,6 @@ def main():
             avg_recall_20 = np.mean(partital_recalls_20)
             avg_recall_10 = np.mean(partital_recalls_10)
                 
-            # 输出平均值
             logger.info(f"Average NDCG@1 in cluster {cluster_id}: {avg_ndcg_1}")
             logger.info(f"Average NDCG@3 in cluster {cluster_id}: {avg_ndcg_3}")
             logger.info(f"Average NDCG@5 in cluster {cluster_id}: {avg_ndcg_5}")
@@ -666,7 +725,6 @@ def main():
             logger.info(f"Average Recall@20 in cluster {cluster_id}: {avg_recall_20}")
             logger.info(f"Average Recall@10 in cluster {cluster_id}: {avg_recall_10}")
             
-        # 重置列表
 
     avg_ndcg_1 = np.mean(ndcgs_1)
     avg_ndcg_3 = np.mean(ndcgs_3)

@@ -27,6 +27,9 @@ We evaluate on the Beijing, Shanghai and Geo-Glue dataset.
 
 To test LIST-R on the Geo-Glue dataset.
 
+The checkpoint of trained relevance model and trained index can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd?usp=drive_link).
+
+
 ```
 python3 -m src.rank.inference  --checkpoint_file ./checkpoints/rank/geo-glue/checkpoint-file \
         --model_type bert-base-chinese --log_dir ./log/ --spatial_step_k 1000 --n_heads 2 \
