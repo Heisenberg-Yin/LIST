@@ -5,6 +5,9 @@
 
 LIST is a novel solution, which learns to index spatio-textual data for answering dense vectors based spatial keyword queries effectively and efficently. It is featured with two novel conponents: First, it propose a lightweight and effective relevance model, which is based on dense retrieval models. Secondly, we introduce a novel machine learning based Approximate Nearest Neighbor Search (ANNS) index, which utilizes the learning-to-cluster technique to group relevant queries and objects together while separating irrelevant queries and objects.
 
+
+##### The full version paper can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd).
+
 ### Requirements
 
 * Python 3.8
@@ -27,7 +30,7 @@ We evaluate on the Beijing, Shanghai and Geo-Glue dataset.
 
 To test LIST-R on the Geo-Glue dataset.
 
-The checkpoint of trained relevance model and trained index can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd?usp=sharing).
+The checkpoint of trained relevance model and trained index can be downloaded [here](https://drive.google.com/drive/folders/1oNRVD1Z5fVH_vjJAHY_uSGYVQR2Ss-cd).
 
 
 ```
